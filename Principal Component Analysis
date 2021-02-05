@@ -1,0 +1,104 @@
+
+library(glmnet)
+library(MASS)
+
+
+
+#Please look at readme.txt for project description.
+
+#Function to calculate the confidence interval for an ideal angle.
+car_brand_ideal_angle = function(data){
+
+n <- ncol(data)
+y = data[,n]
+x = as.matrix(data[,2:n])
+cor_mat = cor(x)
+
+#PCA
+#eigen decomposition
+out1 = eigen(cor_mat)
+va = out1$values			# eigenvalues
+ve = out1$vectors		# eigenvector
+
+##### savings the plot as a pdf file #####
+pdf("scree plot.pdf")
+plot(va, ylab = "Eigenvalues", xlab = "Component Nos")				# scree plot
+dev.off()
+
+
+#EGO values >1
+ego = va[va > 1]							# eigenvalues > 1
+nn = nrow(as.matrix(ego))					# number of factors to retain
+
+out2 = ve[,1:nn]							# eigen vectors associated with the retained factors
+#values less than 0.3 are useless
+
+out3 = ifelse(abs(out2)<0.3,0,out2)
+
+
+rownames(out3) <- c('Attractive',	'Quiet',	'Unreliable',	'Poorly Built',	'Interesting',	'Sporty',	'Uncomfortable',	'Roomy',	'Easy Service',	'Prestige',	
+                    'Common',	'Economical',	'Successful',	'AvantGarde',	'Poor Value',	'Overall Preference')
+
+out4 = (-1)*out3	
+
+z = x %*% out4			# Component Scores; coordinates of the brands in the map
+out5 = lm(y ~ z)		# Preference Regression to estimate how benefits drive overall preferences = f(benefits)
+#Z1 : Trusted build superior quality
+#Z2 : Spacious low on features
+#Z3 : Economical
+#Z4 : Non Avant Garde
+Z1 = z[,1]
+Z3 = z[,3]
+z.out = cbind(Z1, Z3)
+rownames(z.out) = c('Infinity','Ford','Audi','Toyota','Eagle','Honda','Saab','Pontiac','BMW','Mercury')
+
+# Plot, add labels, and save the brand map 
+pdf("BrandMap.pdf")
+plot(Z1, Z3, main = "Brands in Z1 and Z2 space", xlab = "Trusted build superior quality", ylab = "Economical", col = "lightblue", pch = 19, cex = 2)		# Brand Map in Z1-Z2 space
+text(z.out, labels = row.names(z.out), font = 2, cex = 0.5, pos = 1)						# labeling brands
+dev.off()
+
+# Slopes of iso-preference and ideal vector	
+
+b1 = as.vector(coef(out5)[2])
+b2 = as.vector(coef(out5)[4])
+slope.iso.preference = - b1/b2						
+slope.ideal.vector = b2/b1 						
+
+# Angles of iso-preference and ideal vector	
+angle.iso.preference = atan(slope.iso.preference)*180/pi	
+angle.ideal.vector = atan(slope.ideal.vector)*180/pi
+
+#CI
+
+bb=1000
+nn_row=nrow(data)
+
+#####  Data Bootstrap #####
+
+angle_ideal = matrix(0, bb, 1)				# new output matrix for R^2
+star <- cbind(y,z)
+# Do Data Bootstrap 1000 times to get 95% CI for ideal angle
+for(ii in 1:bb) {
+  
+  data.star = star[sample(nn_row, nn_row, replace = T),]		# create (y*, x*) by resampling rows in original data matrix
+  ystar = data.star[,1]
+  xstar = data.star[,2:nn]
+  out.star = lm(ystar~xstar)							# lm with new y* and new x* to get new bhat*
+  b1 = as.vector(coef(out.star)[2])
+  b2 = as.vector(coef(out.star)[4])
+  slope.iso.preference = - b1/b2						
+  slope.ideal.vector = b2/b1 
+  angle.ideal.vector = atan(slope.ideal.vector)*180/pi
+  angle_ideal[ii] = angle.ideal.vector							
+  
+}
+
+# 95% CI for R^2 from sorting
+angle_ideal.lower2 = sort(angle_ideal)[25]		# 25th value in sorted rsq.out
+angle_ideal.upper2 = sort(angle_ideal)[975]		# 975th value in sorted rsq.out
+
+ideal_angle_interval <- cbind(angle_ideal.lower2,angle_ideal.upper2)
+return (ideal_angle_interval) 
+}
+car_brand_ideal_angle(data)
