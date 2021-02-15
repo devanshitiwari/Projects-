@@ -1,0 +1,289 @@
+ #code that saves all non-sponsored item URLs (the URL you go to when clicking on an item) to the file "deals.txt" in the same directory as your code. 
+ #This code will save all the items URLs into a file deals.txt
+
+def main():
+    try:
+        filename = "deals.txt"
+        file = open(filename,"w")
+        for i in range(1,11):
+            headers = {'User-agent' :'Mozilla/5.0'}
+            #here we created urls for accessing each page
+            URL = "https://www.ebay.com/e/daily-deals/hiw-presidents-day-deals-white-sale?_pgn=" + str(i)
+            #take a break
+            time.sleep(5)
+            page = requests.get(URL, headers=headers)
+            doc = BeautifulSoup(page.content, 'html.parser')
+            #from the page content above we look for the class that has the link to the item.
+            div = doc.find_all("div",class_="s-item__info clearfix")
+            for i in div:
+                #within the parent div we look for the child div that contains links - href and save it.
+                links = i.select('a',class_='s-item__link')
+                url = links[0].get('href')
+                #print(url)
+                #saving all urls with a line change.
+                file.write(str(url)+'\n')
+        file.close()
+    except Exception as ex:
+        print("Error:" + str(ex))
+        
+
+if __name__ == '__main__':
+	main()
+
+
+
+
+
+#Write a program that opens the file in (b) and downloads each of the pages (URLs) into the folders "deals". 
+#Each file should be named as "<item-id>.html" where you replace "item-id" with the ID of the item you are saving. 
+#E.g., "264616053293.html" for the item with ID "264616053293". Note it is always good to put a 4-second pause between queries. 
+
+import re
+#file with the URLs
+filename = "deals.txt"
+#folder to save all the files in. This folder was created manually before running the following code.
+data_folder = './deals/'
+#creating a string to save file names for further processing
+file_string = []
+def main():
+    try:
+        #now we open the deals text file to read each line one by one
+        with open(filename,'r',encoding='utf-8') as file:
+            text = file.readlines()
+            count = 0
+            for line in text:
+                count += 1
+                headers = {'User-agent' :'Mozilla/5.0'}
+                #stripping each line for one URL
+                url = line.strip()
+                #searching for the item's id number in the url
+                match_object =  re.search("\/([0-9]+)\?", url)
+                id = match_object.group(1)
+        
+                #requesting the page for the item and storing it in a document
+                time.sleep(5)
+                page = requests.get(url, headers=headers)
+                doc = BeautifulSoup(page.content, 'html.parser')
+        
+                #using item's id number for naming the html page of that item. then saving the above content in it.
+                filename1 = id + ".htm"
+                #creating a string of the file names for further processing
+                file_string.append(filename1)
+                file = open(data_folder + filename1,"w")
+                file.write(str(doc))
+                file.close()
+                print("done")
+    except Exception as ex:
+        print("Error:" + str(ex))
+        
+
+if __name__ == '__main__':
+	main()
+  
+
+#create table in MYSQL to save the data that we will scrape from ebay.
+mycursor = mydb.cursor()
+
+mycursor.execute("CREATE TABLE deals5 (seller_name VARCHAR(100), seller_score int(10) , item_price int(10) , list_price int(10), items_sold int(10), item_title VARCHAR(100), returns_allowed VARCHAR(10), shipping_price varchar(10),condition_item VARCHAR(100))")
+
+
+#This code loops through the pages you downloaded in and opens and parses them into a Python or Java xxxxsoup-object. Then it identifies and selects
+#seller name, seller score, item price, item price, list price, # items sold, title, returns allowed (true / false), shipping price, condition.
+
+#looks for all files in the file_string created above.
+
+for filename in file_string:
+    with open(data_folder + filename,'r',encoding='utf-8') as file:
+        text = file.read()
+        soup = BeautifulSoup(text,'html.parser')
+        #print(filename)
+        #seller name
+        seller = soup('span',class_="mbg-nw")
+        seller1 = seller[0].text
+        if seller:
+            seller_sql = seller1
+        else:
+            seller_sql = None
+        #print(type(seller_sql))
+        #print(seller_sql)
+
+
+
+        #seller score
+        seller_score = soup('span', class_='mbg-l')
+        score = seller_score[0].find_next('a')
+        if score:
+            score_sql = score.text
+            score_sql = int(float(score_sql))
+        else:
+            score_sql = None
+        #print(type(score_sql))
+        #print(score_sql)
+
+        # price of items 
+        items_price = soup('span', {'id':'prcIsum'})
+        items_price2 = soup('span',{ 'id':'mm-saleDscPrc'})
+        match_price_sql = None
+        if items_price:
+            match_price_sql = items_price[0].text
+            match_price_sql = re.findall("\$([0-9]+.[0-9]+)", match_price_sql)
+            match_price_temp = match_price_sql[0]
+            match_price_sql = int(float(match_price_temp)*100)
+
+        elif match_price_sql is None:
+            if items_price2:
+                match_price_sql = items_price2[0].text
+                match_price_sql = re.findall("\$([0-9]+.[0-9]+)", match_price_sql)
+                if match_price_sql:
+                    match_price_sql = match_price_sql = int(float(match_price_sql[0])*100)
+                else :
+                    match_price_sql = None
+            else:
+                match_price_sql = None
+        else :
+                match_price_sql = None
+        #print(match_price_sql)
+
+
+
+
+        #list price
+        list_price = soup('span',{ 'id':'orgPrc'})
+        if list_price:
+            lp = list_price[0].text 
+            match_price =  re.findall("\$([0-9]+.[0-9]+)", lp)
+            match_list_price_sql = match_price[0]
+            match_list_price_sql = int(float(match_list_price_sql)*100)
+        else:
+            match_list_price_sql = None
+            #print("NULL HERE")
+        #print(type(match_list_price_sql) )   
+        #print(match_list_price_sql)
+
+        items_title = soup('span', {'id':'vi-lkhdr-itmTitl'})
+        it = items_title[0].text
+        if it:
+            items_title_sql = it
+        else:
+            items_title_sql = None
+        #print(items_title[0].text)
+        #print(type(items_title_sql))
+        #print(items_title_sql)
+
+
+        #shipping cost
+        shipping = soup('span', {'id':'shSummary'})
+        st = shipping[0].text
+        if st:
+            shipping_sql = st.split('\n', 1)[0]
+        else:
+            shipping_sql = None
+        #print(shipping[0].text)
+
+        #print(type(shipping_sql))
+        print(shipping_sql)
+
+
+
+        #item codnitions
+        condition = soup('div', {'id':'vi-itm-cond'})
+        ct = condition[0].text
+        if ct:
+            condition_sql = ct
+        else:
+            condition_sql = None
+        #print(condition[0].text) 
+        #print(type(condition_sql))
+        #print(condition_sql)
+
+
+        #saving returns as binary
+        returns = soup("span", {"id": "vi-ret-accrd-txt"})
+        if len(returns) == 0:
+            return_binary = "False";
+        else :
+            returnText = re.findall(r'\b\d+\b', returns[0].text)
+            if len(returnText) > 0:
+                if (int(returnText[0])) > 0:
+                    return_binary = "True"
+                else :
+                    return_binary = "False"
+            else :
+                return_binary = "False"       
+        #print(return_binary)
+        #print(type(return_binary))
+        #print(return_binary)
+        
+        # number of items sold
+        items_sold = soup("span", {"class": "soldwithfeedback"})
+        items_sold2 = soup("span", {"class": "w2b-sgl"})
+        sold_sql = None
+        if items_sold:
+            for tags in items_sold:
+                sold_sql = tags.find('a').text
+                sold_sql = re.findall("([\d,]*)\s*sold", sold_sql)
+                if sold_sql:
+                    sold_sql = sold_sql[0].split(' ')[0]
+                    sold_sql = int(sold_sql.replace(',', ''))
+                else: 
+                    sold_sql = None
+        else : 
+            sold_sql = None;
+        if sold_sql is None:
+            if items_sold2:
+                for tags in items_sold2:
+                    sold_sql = tags.text
+                    sold_sql = re.findall("([\d,]*)\s*sold", sold_sql)
+                    if sold_sql:
+                        sold_sql = sold_sql[0].split(' ')[0]
+                        sold_sql = int(sold_sql.replace(',', ''))
+                        break
+                    else :
+                        sold_sql = None
+            else:
+                sold_sql = None
+
+#Inserting data into the deals 2 table
+
+
+        mycursor = mydb.cursor()
+        sql = "INSERT INTO deals5 (seller_name , seller_score  , item_price  , list_price , items_sold , item_title , returns_allowed, shipping_price ,condition_item) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s);"
+        #val = [seller_sql , score_sql  , match_price_sql  , match_list_price_sql,items_sold_sql , items_title_sql , return_binary, shipping_sql ,condition_sql]
+        #mycursor.execute(sql, val)
+        mycursor.execute(sql, (seller_sql , score_sql  , match_price_sql  , match_list_price_sql,sold_sql , items_title_sql , return_binary, shipping_sql ,condition_sql))
+        mydb.commit()
+    
+    
+mycursor.close()
+mydb.close()
+
+
+
+#Stats summary for items_sold, seller_Score
+#Print to the screen the mean, min, max, and mean for each numeric column, dependent on (i) whether “list price” was providedand (ii) "condition" 
+
+mycursor = mydb.cursor()
+mycursor.execute("""with combo as ( select items_sold,condition_item,case when list_price IS NULL then 'No Value Provided' else 'Value Provided' end as 'List_Item'  from deals5)
+select round(avg(items_sold),2) as 'Mean Average',round(min(items_sold),2) as 'Minimum',round(max(items_sold),2) as 'Maximum',condition_item, List_Item from combo group by condition_item, List_Item;""")
+
+
+ans = mycursor.fetchall()
+ans = pd.DataFrame(ans)
+column_names = ["Average","minimum","maximum","condition","list price"]
+ans.columns = column_names
+print("Items sold")
+print(ans)
+
+
+mycursor = mydb.cursor()
+mycursor.execute("""with combo as ( select seller_score,condition_item,case when list_price IS NULL then 'No Value Provided' else 'Value Provided' end as 'List_Item'  from deals5)
+select round(avg(seller_score),2) as 'Mean Average',round(min(seller_score),2) as 'Minimum',round(max(seller_score),2) as 'Maximum',condition_item, List_Item from combo group by condition_item, List_Item;""")
+
+
+ans = mycursor.fetchall()
+ans = pd.DataFrame(ans)
+column_names = ["Average","minimum","maximum","condition","list price"]
+ans.columns = column_names
+print("Seller Score")
+print(ans)
+
