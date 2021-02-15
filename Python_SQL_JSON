@@ -1,0 +1,77 @@
+import mysql.connector
+from bs4 import BeautifulSoup
+import requests
+import time
+import json
+import pandas as pd
+from requests.auth import HTTPBasicAuth
+
+##Write a small program in Python or Java that (i) connects to your local SQL instance, (ii) creates the database , 
+##(iii) creates the table “ip_addresses” in “msba” containing the columns “ip”, “city”, and “zip”. This small code will create an empty table.
+
+
+mydb = mysql.connector.connect(user='', password='',
+                              host='',database="")
+mycursor = mydb.cursor()
+
+mycursor.execute("CREATE DATABASE msba")
+mycursor.execute("CREATE TABLE ip_addresses (ip VARCHAR(20), city VARCHAR(40),zip int(10))")
+mydb.close()
+
+## for the next part : Go to https://ipstack.com/ and make yourself familiar with the API and its use. Request a free API Key form the page.
+
+##read “Specify Output Format” and “Specify Response Fields” in https://ipstack.com/documentation , 
+## and write down the four URL strings that return the “main” fields in JSON format for IP addresses “8.8.8.8”, “128.120.0.25”, “128.32.12.14”, “64.165.72.144”,
+## executes above four API calls and prints the result to screen.
+
+ def main():
+        try:
+            
+            mycursor = mydb.cursor()
+            #ip string containing all 5 IPs
+            ip_string = {'8.8.8.8','128.120.0.25','128.32.12.14','64.165.72.144'}
+            for i in ip_string:
+                #creating a URL using IP, access key and getting the data in the fields main section.
+                url = "http://api.ipstack.com/"+ i + "&fields=main"
+                params = {'access_key' : ''}
+                page = requests.get(url,params)
+                doc = BeautifulSoup(page.content, 'html.parser')
+                json_dict = json.loads(str(doc))
+                #print(json_dict)
+                json_formatted_str = json.dumps(json_dict, indent=2)
+                #pretty print json
+                print("Main Fields in pretty json format")
+                print(json_formatted_str)
+                
+                ##Parse the JSON strings in (c) to an internal Python or Java object for further handling. 
+                ##Then write code that iterates through the five API requests and prints the “city” and “zip” fields to screen.
+                #storing json string to python objects
+                
+                json_ip = json_dict['ip']
+                json_city = json_dict['city']
+                json_zip = json_dict['zip']
+                print("")
+                #just to check my data is correct
+                print(json_city)
+                print(json_zip)
+                
+                ##Augment your code from to also write all five “ip”, “city”, and “zip” to the database
+                #here we insert the data into the sql table created earlier ip_addresses
+                sql = "INSERT INTO ip_addresses (ip,city,zip) VALUES (%s,%s,%s);"
+                #placing all the parsed values into variables
+                val = [json_ip,json_city,json_zip]
+                #calling my cursor to execute the insert SQL query
+                mycursor.execute(sql, val)
+            mydb.commit()
+            #print(mycursor.rowcount, "record inserted.")
+        except IOError as e:
+            print(e)
+
+
+            
+if __name__ == "__main__":
+    main()
+    
+    
+    
+ 
