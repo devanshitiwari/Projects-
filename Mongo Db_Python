@@ -1,0 +1,32 @@
+pip install pymongo
+
+from pymongo import MongoClient
+
+from pprint import pprint
+# connect to MongoDB
+client = MongoClient('mongodb://localhost:27017')
+
+#connecting to sample data collection - pokemon
+db = client.samples_pokemon
+pprint(db)
+
+
+collection = db['samples_pokemon']
+print(collection)
+
+#filtering on logical conditions
+
+filterQ = { "candy_count": {"$gte":7}}
+projectionQ = {"name": 1}
+mydoc = collection.find(filterQ,projectionQ)
+for x in mydoc:
+  pprint(x)
+#db.eval("db.getCollection("samples_pokemon").find({candy_count: {$gte:7}}, {candy_count:1,name:1, _id:0})")
+
+#Filtering based on two values with an OR condition
+
+filterQ = { "$or":[{"num":"004"},{"num":"003"}]}
+projectionQ = {"name": 1}
+mydoc = collection.find(filterQ,projectionQ)
+for x in mydoc:
+  print(x)
